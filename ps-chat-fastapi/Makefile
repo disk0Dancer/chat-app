@@ -6,22 +6,21 @@ help: ## List all commands with comments
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$|^[a-zA-Z_-]+:.*$$' $(MAKEFILE_LIST) | \
     awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-install: # Install Python and Cloud Composer for local environment. Require DIR argument (where install composer-dev)
+install: # Install Python and Cloud Composer for local environment.
 	if [! command -v uv &> /dev/null]; then \
 	    curl -LsSf https://astral.sh/uv/install.sh | sh; \
 	fi;
-	@#$(MAKE)
 	uv venv
-	if [ -f requirements.txt ]; then
-	    uv pip install -r requirements.txt
-	fi
+	if [ -f requirements.txt ]; then \
+	    uv pip install -r requirements.txt; \
+	fi;
 	
 
 api-up: # Start backend
 	uv run uvicorn \
 		main:app \
 		--host 0.0.0.0 \
-		 --port 8000\
+		 --port $$PORT \
 		 --reload
 
 pubsub-up: # Start Pub/Sub emulator
@@ -68,5 +67,8 @@ test:
 lint:
 	uv run ruff check
 
-fmt:
+lint.fix:
+	uv run ruff check --fix
+
+format:
 	uv run ruff format
