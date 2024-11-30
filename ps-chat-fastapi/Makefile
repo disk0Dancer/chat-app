@@ -18,7 +18,7 @@ install: ## Install Python and Cloud Composer for local environment.
 
 api-up: ## Start backend
 	uv run uvicorn \
-		main:app \
+		main:app.api \
 		--host 0.0.0.0 \
 		 --port $(PORT) \
 		 --reload
