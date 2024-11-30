@@ -1,5 +1,7 @@
 .PHONY: help install up down test lint format
 
+PORT:=3000
+
 help: ## List all commands with comments
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$|^[a-zA-Z_-]+:.*$$' $(MAKEFILE_LIST) | \
 	awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
@@ -23,11 +25,18 @@ install: # Install Node.js and Vite for local environment
 up: # Start local environment
 	@# Start the Vite server
 	npm run dev
+	if [ -z $(PUBLIC) ]; then \
+	    @echo "Local running at http://localhost:$$PORT"; \
+   		else \
+	    	@echo "Public running at $(PUBLIC)"; \
+	    	ngrok http --url=sheep-artistic-sadly.ngrok-free.app $$PORT &; \
+	fi
+    
 
 down: # Stop local environment
 	@# Stop the Vite server
 	@echo "Stopping Vite server..."
-	@kill -9 $(lsof -t -i:3000)
+	kill $(shell lsof -ti ":$(PORT)") &
 
 test: # Run tests
 	@# Run the tests
@@ -36,6 +45,9 @@ test: # Run tests
 lint: # Lint the code
 	@# Lint the code
 	npm run lint
+
+lint.fix: # Lint the code and fix issues
+	npm run lint:fix
 
 format: # Format the code
 	@# Format the code
