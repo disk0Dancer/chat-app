@@ -1,6 +1,6 @@
 .PHONY: help install up test lint
 
-PORT=8000
+PORT:=8000
 
 help: ## List all commands with comments
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$|^[a-zA-Z_-]+:.*$$' $(MAKEFILE_LIST) | \
@@ -20,12 +20,13 @@ api-up: # Start backend
 	uv run uvicorn \
 		main:app \
 		--host 0.0.0.0 \
-		 --port $$PORT \
+		 --port $(PORT) \
 		 --reload
 
 pubsub-up: # Start Pub/Sub emulator
 	@echo "Starting Pub/Sub emulator..."; \
     PROJECT="chat"; \
+    PS_START_TRIES=0; \
     docker run --rm -d \
         -p 8085:8085 \
         --name gcp-pubsub-emulator \
@@ -36,6 +37,13 @@ pubsub-up: # Start Pub/Sub emulator
     until curl -s http://0.0.0.0:8085/ > /dev/null; do \
         sleep 2; \
         echo "Waiting for Pub/Sub emulator to start..."; \
+        # add limit of retries 5 and then say failed \
+        if [ $(PS_START_TRIES) < 5 ]; then \
+            PS_START_TRIES = $$(($$PS_START_TRIES + 1));  #  $(($A+1)) \
+            else \
+				echo "Pub/Sub emulator failed to start"; \
+				exit 1; \
+        fi; \
     done; \
     for TOPIC in chat test; do \
         curl -X PUT http://0.0.0.0:8085/v1/projects/$$PROJECT/topics/$$TOPIC; \
@@ -50,14 +58,14 @@ pubsub-up: # Start Pub/Sub emulator
 	@sleep 5 && echo "Pub/Sub emulator started at http://0.0.0.0:8085"
 
 up: # Start local env
-	@$(MAKE) pubsub-up &
+	@#$(MAKE) pubsub-up &
 	@$(MAKE) api-up &
 	@wait
 	@echo "\nLocal enviroments started"
 
 down: # Stop local env
 	docker stop gcp-pubsub-emulator &
-	@kill -9 $(lsof -t -i:$$PORT) &
+	kill $(shell lsof -ti ":$(PORT)") &
 	@wait
 	@echo "\nLocal enviroments stopped"
 
