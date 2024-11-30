@@ -8,13 +8,16 @@ help: ## List all commands with comments
 	
 install: ## Install Node.js and Vite for local environment
 	@if ! command -v node &> /dev/null; then \
-		echo "Node.js is not installed. Please install Node.js: https://nodejs.org/"; \
-		exit 1; \
+  		@echo "Installing Node.js and NPM"; \
+		curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash; \
+        nvm install 22; \
+        node -v; \
+        npm -v; \
 	fi
 
 	@if ! command -v vite &> /dev/null; then \
-		echo "Vite is not installed. Installing Vite..."; \
-		npm install -g create-vite; \
+		@echo "Installing Vite"; \
+		npm install -g vite; \
 	fi
 
 	npm install
