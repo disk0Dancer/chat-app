@@ -3,10 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from connection import ConnectionManager
 
-class App:
+class Application:
     def __init__(self):
         self.api = FastAPI()
-        self.connection_manager = ConnectionManager()
+        
+        self.manager = ConnectionManager()
 
         self.api.add_middleware(
             CORSMiddleware,

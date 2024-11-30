@@ -3,9 +3,9 @@ from fastapi import WebSocket, WebSocketDisconnect
 from datetime import datetime
 import json
 
-from app import App
+from app import Application
 
-app = App()
+app = Application()
 
 @app.api.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: int):
@@ -16,13 +16,13 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
         while True:
             data = await websocket.receive_json() 
             
-            if "login" in data and data["login"] not in self.users.values():
-                self.users[client_id] = data["login"]
+            if "login" in data and data["login"] not in app.manager.users.values():
+                app.manager.users[client_id] = data["login"]
                 message = {
                     "time": current_time,
                     "clientId": client_id,
                     "message": "Online",
-                    "login": self.users[client_id],
+                    "login": app.manager.users[client_id],
                 }
                 await app.manager.broadcast(json.dumps(message))
                 continue
@@ -34,7 +34,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
                     "time": current_time,
                     "clientId": client_id,
                     "message": data["message"], 
-                    "login": self.users[client_id],
+                    "login": app.manager.users[client_id],
                 }
                 await app.manager.broadcast(json.dumps(message))
 
@@ -44,9 +44,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
             "time": current_time,
             "clientId": client_id,
             "message": "Offline",
-            "login": self.users[client_id],
+            "login": app.manager.users[client_id],
         }
-        self.users.pop(client_id)
+        app.manager.users.pop(client_id)
         await app.manager.broadcast(json.dumps(message))
 
 # start
