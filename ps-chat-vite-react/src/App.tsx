@@ -7,6 +7,8 @@ function App() {
     const [clientId, setClienId] = useState(
         Math.floor(new Date().getTime() / 1000)
     );
+    const [login, setLogin] = useState("");
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
     // @ts-ignore
     const [chatHistory, setChatHistory] = useState([]);
     // @ts-ignore
@@ -18,12 +20,12 @@ function App() {
     const [message, setMessage] = useState([]);
     const [messages, setMessages] = useState([]);
 
-    useEffect(() => {
+    const handleLogin = () => {
         const url = "ws://localhost:8000/ws/" + clientId;
         const ws = new WebSocket(url);
         // @ts-ignore
         ws.onopen = (event) => {
-            ws.send("Connect");
+            ws.send(JSON.stringify({ clientId: clientId, login: login }));
         };
 
         // recieve message every start page
@@ -33,13 +35,15 @@ function App() {
         };
         // @ts-ignore
         setWebsckt(ws);
+        setIsLoggedIn(true);
         //clean up function when we close page
         return () => ws.close();
-    }, []);
+    };
 
+    // @ts-ignore
     const sendMessage = () => {
         // @ts-ignore
-        websckt.send(message);
+        websckt.send(JSON.stringify({message: message }));
         // recieve message every send message
         // @ts-ignore
         websckt.onmessage = (e) => {
@@ -49,48 +53,74 @@ function App() {
         setMessage([]);
     };
 
+    const enterClick = (e, func) => {
+        if (e.key === "Enter") {
+            func();
+        }
+    }
+
+    // @ts-ignore
     return (
         <div className="container">
-            <h1>Chat</h1>
-            <h2>Your client id: {clientId} </h2>
-            <div className="chat-container">
-                <div className="chat">
-                    {messages.map((value, index) => {
-                        if (value.clientId === clientId) {
-                            return (
-                                <div key={index} className="my-message-container">
-                                    <div className="my-message">
-                                        <p className="client">client id : {clientId}</p>
-                                        <p className="message">{value.message}</p>
-                                    </div>
-                                </div>
-                            );
-                        } else {
-                            return (
-                                <div key={index} className="another-message-container">
-                                    <div className="another-message">
-                                        <p className="client">client id : {clientId}</p>
-                                        <p className="message">{value.message}</p>
-                                    </div>
-                                </div>
-                            );
-                        }
-                    })}
-                </div>
+            {!isLoggedIn ? (
                 <div className="input-chat-container">
+                    <h1>Enter your login</h1>
                     <input
                         className="input-chat"
                         type="text"
-                        placeholder="Chat message ..."
-                        // @ts-ignore
-                        onChange={(e) => setMessage(e.target.value)}
-                        value={message}
-                    ></input>
-                    <button className="submit-chat" onClick={sendMessage}>
-                        Send
-                    </button>
+                        placeholder="Login"
+                        value={login}
+                        onChange={(e) => setLogin(e.target.value)}
+                        onKeyDown={(e) => enterClick(e, handleLogin)}
+                    />
+                    <button
+                        onClick={handleLogin}
+                        className="submit-chat"
+                    >Login</button>
                 </div>
-            </div>
+            ) : (
+                <div className="chat-container">
+                    <h1>Chat</h1>
+                    <h2>Your login: {login} </h2>
+                    <div className="chat">
+                        {messages.map((value, index) => {
+                            if (value.login === login) {
+                                return (
+                                    <div key={index} className="my-message-container">
+                                        <div className="my-message">
+                                            <p className="message">{value.message}</p>
+                                        </div>
+                                    </div>
+                                );
+                            } else {
+                                return (
+                                    <div key={index} className="another-message-container">
+                                        <div className="another-message">
+                                            <p className="client">{value.login}</p>
+                                            <p className="message">{value.message}</p>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                        })}
+                    </div>
+                    <div className="input-chat-container">
+                        <input
+                            className="input-chat"
+                            type="text"
+                            placeholder="Chat message ..."
+                            // @ts-ignore
+                            onChange={(e) => setMessage(e.target.value)}
+                            onKeyDown={(e) => enterClick(e, sendMessage)}
+                            value={message}>
+                        </input>
+                        <button
+                            className="submit-chat"
+                            onClick={sendMessage}
+                        >Send</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

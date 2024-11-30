@@ -20,7 +20,7 @@ install: ## Install Node.js and Vite for local environment
 	npm install
 
 ngrok: ## Publish
-    ngrok http --url=sheep-artistic-sadly.ngrok-free.app $$PORT &
+    ngrok http --url=sheep-artistic-sadly.ngrok-free.app $(PORT) &
 
 up: ngrok ## Start local environment
 	npm run dev
