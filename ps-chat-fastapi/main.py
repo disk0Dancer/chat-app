@@ -1,63 +1,55 @@
-from typing import List
+from fastapi import WebSocket, WebSocketDisconnect
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import json
 
-app = FastAPI()
+from app import App
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # can alter with time
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = App()
 
-
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
-
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
-
-
-manager = ConnectionManager()
-
-
-@app.websocket("/ws/{client_id}")
+@app.api.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: int):
-    await manager.connect(websocket)
+    await app.manager.connect(websocket)
     now = datetime.now()
     current_time = now.strftime("%H:%M")
     try:
         while True:
-            data = await websocket.receive_text()
-            # await manager.send_personal_message(f"You wrote: {data}", websocket)
-            message = {"time":current_time,"clientId":client_id,"message":data}
-            await manager.broadcast(json.dumps(message))
+            data = await websocket.receive_json() 
+            
+            if "login" in data and data["login"] not in self.users.values():
+                self.users[client_id] = data["login"]
+                message = {
+                    "time": current_time,
+                    "clientId": client_id,
+                    "message": "Online",
+                    "login": self.users[client_id],
+                }
+                await app.manager.broadcast(json.dumps(message))
+                continue
+            
+            if "message" in data:
+            
+                # await app.manager.send_personal_message(f"You wrote: {data}", websocket)
+                message = {
+                    "time": current_time,
+                    "clientId": client_id,
+                    "message": data["message"], 
+                    "login": self.users[client_id],
+                }
+                await app.manager.broadcast(json.dumps(message))
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-        message = {"time":current_time,"clientId":client_id,"message":"Offline"}
-        await manager.broadcast(json.dumps(message))
+        app.manager.disconnect(websocket)
+        message = {
+            "time": current_time,
+            "clientId": client_id,
+            "message": "Offline",
+            "login": self.users[client_id],
+        }
+        self.users.pop(client_id)
+        await app.manager.broadcast(json.dumps(message))
 
 # start
 if __name__ == "__main__":
     import uvicorn
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app.api, host="0.0.0.0", port=8000)

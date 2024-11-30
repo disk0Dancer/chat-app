@@ -6,7 +6,7 @@ help: ## List all commands with comments
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$|^[a-zA-Z_-]+:.*$$' $(MAKEFILE_LIST) | \
     awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-install: # Install Python and Cloud Composer for local environment.
+install: ## Install Python and Cloud Composer for local environment.
 	if [! command -v uv &> /dev/null]; then \
 	    curl -LsSf https://astral.sh/uv/install.sh | sh; \
 	fi;
@@ -16,14 +16,14 @@ install: # Install Python and Cloud Composer for local environment.
 	fi;
 	
 
-api-up: # Start backend
+api-up: ## Start backend
 	uv run uvicorn \
 		main:app \
 		--host 0.0.0.0 \
 		 --port $(PORT) \
 		 --reload
 
-pubsub-up: # Start Pub/Sub emulator
+pubsub-up: ## Start Pub/Sub emulator
 	@echo "Starting Pub/Sub emulator..."; \
     PROJECT="chat"; \
     PS_START_TRIES=0; \
@@ -57,26 +57,26 @@ pubsub-up: # Start Pub/Sub emulator
         http://localhost:8085/v1/projects/$$PROJECT/topics/test:publish
 	@sleep 5 && echo "Pub/Sub emulator started at http://0.0.0.0:8085"
 
-up: # Start local env
+up: ## Start local env
 	@#$(MAKE) pubsub-up &
 	@$(MAKE) api-up &
 	@wait
 	@echo "\nLocal enviroments started"
 
-down: # Stop local env
+down: ## Stop local env
 	docker stop gcp-pubsub-emulator &
 	kill $(shell lsof -ti ":$(PORT)") &
 	@wait
 	@echo "\nLocal enviroments stopped"
 
-test:
+test: ## Run tests
 	uv run python -m unittest discover
 
-lint:
+lint: ## Lint the code
 	uv run ruff check
 
-lint.fix:
+lint.fix: ## Lint the code and fix issues
 	uv run ruff check --fix
 
-format:
+format: ## Format the code
 	uv run ruff format
