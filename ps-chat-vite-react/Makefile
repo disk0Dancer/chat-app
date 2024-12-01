@@ -27,7 +27,7 @@ ngrok: ## Publish
 
 up: ngrok ## Start local environment
 	npm run dev
-	if [ -z $(PUBLIC) ]; then \
+	@if [ -z $(PUBLIC) ]; then \
 	    @echo "Local running at http://localhost:$$PORT"; \
    		else \
 	    	@echo "Public running at $(PUBLIC)"; \
