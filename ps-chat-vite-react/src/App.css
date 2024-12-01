@@ -168,3 +168,8 @@
     margin-top: 3px;
     margin-bottom: 0;
 }
+
+.error-message {
+    color: red;
+    margin-bottom: 10px;
+}

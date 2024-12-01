@@ -2,8 +2,8 @@
 
 ## Description
 
-This is the frontend part of a full-stack chat application designed to provide real-time messaging capabilities. 
-The frontend is built using React and TypeScript, ensuring a seamless and efficient user experience. 
+This is the frontend part of a full-stack chat application designed to provide real-time messaging capabilities.
+The frontend is built using React and TypeScript, ensuring a seamless and efficient user experience.
 The project includes various utilities and build tools to streamline development and deployment processes.
 
 ## Technologies
@@ -17,6 +17,7 @@ The project includes various utilities and build tools to streamline development
 ## Quick Start
 
 ### 1. Setup
+
 ```sh
 git clone git@github.com:disk0Dancer/chat-app.git
 cd chat-app/ps-chat-vite-react
@@ -24,6 +25,7 @@ make install
 ```
 
 ### 2. Start application
+
 ```sh
 make up
 ```
@@ -44,6 +46,7 @@ make up
 ## Help
 
 Get more info for available commands by running script:
+
 ```bash
 make help
 ```
