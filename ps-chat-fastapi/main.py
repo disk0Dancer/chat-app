@@ -29,6 +29,7 @@ async def chat_history():
 async def send(body: Message, response: Response):
     body.time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if app.history.add_message(body):
+        app.logger.info(f"New message {body.message_id} from {body.user.login}: {body.message}")
         return {"response": "Delivered"}
     response.status_code = status.HTTP_400_BAD_REQUEST
     return {"response": "Not delivered"}
@@ -36,6 +37,7 @@ async def send(body: Message, response: Response):
 
 @app.api.delete("/chat", status_code=201)
 async def delete(body: Message, response: Response):
+    app.logger.info(f"Delete message {body.message_id} from {body.user.login}: {body.message}")
     raise NotImplementedError
     pass
 

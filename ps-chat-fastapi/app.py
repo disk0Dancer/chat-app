@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, Dict, List
 from pydantic import BaseModel, Field
 
+import json
+import logging
+
 
 class User(BaseModel):
     login: str
@@ -69,3 +72,11 @@ class Application:
 
         self.manager = ApplicationUsers()
         self.history = ChatHistory()
+
+        logging.basicConfig(
+            filename='chat_app.log',
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        self.logger = logging.getLogger(__name__)
+            
