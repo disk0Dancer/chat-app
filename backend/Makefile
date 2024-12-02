@@ -63,6 +63,14 @@ up: ## Start local env
 	@wait
 	@echo "\nLocal enviroments started"
 
+prod: ## Start production environment
+	@#$(MAKE) pubsub-up &
+	@uv run uvicorn \
+		main:app.api \
+		--host 0.0.0.0 \
+		--port $(PORT)
+	@wait
+
 down: ## Stop local env
 	docker stop gcp-pubsub-emulator &
 	kill $(shell lsof -ti ":$(PORT)") &

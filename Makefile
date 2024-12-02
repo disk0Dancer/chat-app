@@ -18,6 +18,13 @@ up: ## Start local environment
 	@wait
 	@echo "Local environment started."
 
+prod: ## Start production environment
+	@echo "Starting production environment..."
+	@$(MAKE) -C backend prod &
+	@$(MAKE) -C frontend prod &
+	@wait
+	@echo "Production environment started."
+
 down: ## Stop local environment
 	@echo "Stopping local environment..."
 	@$(MAKE) -C backend down &

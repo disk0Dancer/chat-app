@@ -23,16 +23,16 @@ install: ## Install Node.js and Vite for local environment
 	npm install
 
 ngrok: ## Publish
-    ngrok http --url=sheep-artistic-sadly.ngrok-free.app $(PORT) &
+	ngrok http --url=sheep-artistic-sadly.ngrok-free.app $(PORT) &
 
-up: ngrok ## Start local environment
+up: ## Start local environment
 	npm run dev
-	@if [ -z $(PUBLIC) ]; then \
-	    @echo "Local running at http://localhost:$$PORT"; \
-   		else \
-	    	@echo "Public running at $(PUBLIC)"; \
-	    	ngrok http --url=sheep-artistic-sadly.ngrok-free.app $$PORT &; \
-	fi
+
+prod: ## Start production environment
+	@npm run dev &
+	@$(MAKE) ngrok &
+	@wait
+	@echo "Frontend started"
 
 down: ## Stop local environment
 	@kill $(shell lsof -ti ":$(PORT)")
