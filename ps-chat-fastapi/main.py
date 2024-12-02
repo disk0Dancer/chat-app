@@ -11,7 +11,7 @@ app = Application()
 async def websocket_endpoint(websocket: WebSocket, client_id: int):
     await app.manager.connect(websocket)
     now = datetime.now()
-    current_time = now.strftime("%H:%M")
+    current_time = datetime.now().strftime("%H:%M")
     try:
         while True:
             data = await websocket.receive_json() 

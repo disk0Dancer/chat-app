@@ -17,7 +17,7 @@ function App() {
     const [textValue, setTextValue] = useState("");
     const [websckt, setWebsckt] = useState();
 
-    const [message, setMessage] = useState([]);
+    const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
 
     const handleLogin = () => {
