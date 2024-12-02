@@ -6,48 +6,48 @@ help: ## List all commands with comments
 	
 install: ## Install dependencies
 	@echo "Installing dependencies..."
-	@$(MAKE) -C ps-chat-fastapi install &
-	@$(MAKE) -C ps-chat-vite-react install &
+	@$(MAKE) -C backend install &
+	@$(MAKE) -C frontend install &
 	@wait
 	@echo "Dependencies installed."
 
 up: ## Start local environment
 	@echo "Starting local environment..."
-	@$(MAKE) -C ps-chat-fastapi up &
-	@$(MAKE) -C ps-chat-vite-react up &
+	@$(MAKE) -C backend up &
+	@$(MAKE) -C frontend up &
 	@wait
 	@echo "Local environment started."
 
 down: ## Stop local environment
 	@echo "Stopping local environment..."
-	@$(MAKE) -C ps-chat-fastapi down &
-	@$(MAKE) -C ps-chat-vite-react down &
+	@$(MAKE) -C backend down &
+	@$(MAKE) -C frontend down &
 	@wait
 	@echo "Local environment stopped."
 
 test: ## Run tests
 	@echo "Running tests..."
-	@$(MAKE) -C ps-chat-fastapi test &
-	@$(MAKE) -C ps-chat-vite-react test &
+	@$(MAKE) -C backend test &
+	@$(MAKE) -C frontend test &
 	@wait
 	@echo "Tests run."
 
 lint: ## Lint the code
 	@echo "Linting the code..."
-	@$(MAKE) -C ps-chat-fastapi lint &
-	@$(MAKE) -C ps-chat-vite-react lint &
+	@$(MAKE) -C backend lint &
+	@$(MAKE) -C frontend lint &
 	@wait
 	@echo "Code linted."
 
 lint.fix: ## Lint the code and fix issues
 	@echo "Linting the code and fixing issues..."
-	@$(MAKE) -C ps-chat-fastapi lint.fix
-	@$(MAKE) -C ps-chat-vite-react lint.fix
+	@$(MAKE) -C backend lint.fix
+	@$(MAKE) -C frontend lint.fix
 	@echo "Code linted and issues fixed."
 
 
 format: ## Format the code
 	@echo "Formatting the code..."
-	@$(MAKE) -C ps-chat-fastapi format
-	@$(MAKE) -C ps-chat-vite-react format
+	@$(MAKE) -C backend format
+	@$(MAKE) -C frontend format
 	@echo "Code formatted."

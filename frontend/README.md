@@ -20,7 +20,7 @@ The project includes various utilities and build tools to streamline development
 
 ```sh
 git clone git@github.com:disk0Dancer/chat-app.git
-cd chat-app/ps-chat-vite-react
+cd chat-app/frontend
 make install
 ```
 

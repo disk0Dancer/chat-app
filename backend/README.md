@@ -17,7 +17,7 @@ This is the backend part of a full-stack chat application designed to provide re
 ### 1. Setup
 ```sh
 git clone git@github.com:disk0Dancer/chat-app.git
-cd chat-app/ps-chat-fastapi
+cd chat-app/backend
 make install
 ```
 
