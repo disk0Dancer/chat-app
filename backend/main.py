@@ -20,6 +20,20 @@ async def login(body: User, response: Response):
     return {"response": "Choose another login"}
 
 
+@app.api.delete("/logout/{login}", status_code=200)
+async def logout(login: str, response: Response):
+    user = app.manager.get_user(login)
+    if app.manager.remove_user(user):
+        return {"response": "Disconnected"}
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return {"response": "User not found"}
+
+
+@app.api.get("/users", status_code=200)
+async def users():
+    return app.manager.get_users()
+
+
 @app.api.get("/chat", status_code=200)
 async def chat_history():
     return app.history.get_messages()
@@ -29,7 +43,9 @@ async def chat_history():
 async def send(body: Message, response: Response):
     body.time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if app.history.add_message(body):
-        app.logger.info(f"New message {body.message_id} from {body.user.login}: {body.message}")
+        app.logger.info(
+            f"New message {body.message_id} from {body.user.login}: {body.message}"
+        )
         return {"response": "Delivered"}
     response.status_code = status.HTTP_400_BAD_REQUEST
     return {"response": "Not delivered"}
@@ -37,13 +53,14 @@ async def send(body: Message, response: Response):
 
 @app.api.delete("/chat/{message_id}", status_code=201)
 async def delete(message_id: str, response: Response):
-    app.logger.info(f"Delete message {message_id}: {app.history.get_message(message_id)}")
+    app.logger.info(
+        f"Delete message {message_id}: {app.history.get_message(message_id)}"
+    )
     message = app.history.get_message(message_id)
     if app.history.remove_message(message):
         return {"response": "Deleted"}
     response.status_code = status.HTTP_404_NOT_FOUND
     return {"response": "Message not found"}
-    
 
 
 # start

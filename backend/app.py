@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, Dict, List
 from pydantic import BaseModel, Field
 
-import json
 import logging
 
 
@@ -28,11 +27,13 @@ class ApplicationUsers(BaseModel):
             return True
         return False
 
-    def get_users(self) -> Dict[str, User]:
-        return self.users
+    def get_users(self) -> List[str]:
+        return list(self.users.keys())
+
+    def get_user(self, login: str) -> User:
+        return self.users.get(login, None)
 
     def remove_user(self, user: User) -> bool:
-        # TODO: remove user if he  not fetched msgs for a long time
         if user.login in self.users:
             self.users.pop(user.login)
             return True
@@ -43,7 +44,6 @@ class ChatHistory(BaseModel):
     messages: Dict[str, Message] = Field(default_factory=dict)
 
     def add_message(self, message: Message) -> bool:
-        # assert len(message.message_id) > 0, "Message ID must be set"
         if len(message.message_id) > 0:
             self.messages[message.message_id] = message
             return True
@@ -51,7 +51,7 @@ class ChatHistory(BaseModel):
 
     def get_messages(self) -> List[Message]:
         return list(self.messages.values())
-    
+
     def get_message(self, message_id: str) -> Message:
         return self.messages.get(message_id, None)
 
@@ -77,9 +77,8 @@ class Application:
         self.history = ChatHistory()
 
         logging.basicConfig(
-            filename='chat_app.log',
+            filename="chat_app.log",
             level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
         self.logger = logging.getLogger(__name__)
-            
