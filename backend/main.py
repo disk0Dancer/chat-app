@@ -35,11 +35,15 @@ async def send(body: Message, response: Response):
     return {"response": "Not delivered"}
 
 
-@app.api.delete("/chat", status_code=201)
-async def delete(body: Message, response: Response):
-    app.logger.info(f"Delete message {body.message_id} from {body.user.login}: {body.message}")
-    raise NotImplementedError
-    pass
+@app.api.delete("/chat/{message_id}", status_code=201)
+async def delete(message_id: str, response: Response):
+    app.logger.info(f"Delete message {message_id}: {app.history.get_message(message_id)}")
+    message = app.history.get_message(message_id)
+    if app.history.remove_message(message):
+        return {"response": "Deleted"}
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return {"response": "Message not found"}
+    
 
 
 # start

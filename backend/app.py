@@ -34,7 +34,7 @@ class ApplicationUsers(BaseModel):
     def remove_user(self, user: User) -> bool:
         # TODO: remove user if he  not fetched msgs for a long time
         if user.login in self.users:
-            self.users.remove(user.login)
+            self.users.pop(user.login)
             return True
         return False
 
@@ -51,10 +51,13 @@ class ChatHistory(BaseModel):
 
     def get_messages(self) -> List[Message]:
         return list(self.messages.values())
+    
+    def get_message(self, message_id: str) -> Message:
+        return self.messages.get(message_id, None)
 
     def remove_message(self, message: Message) -> bool:
         if message.message_id in self.messages:
-            self.messages.remove(message.message_id)
+            self.messages.pop(message.message_id)
             return True
         return False
 
