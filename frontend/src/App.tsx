@@ -9,7 +9,30 @@ function App() {
 
     const [message, setMessage] = useState([]);
     const [messages, setMessages] = useState([]);
+    const [deletedMessages,setDeletedMessages] = useState([]);
     const [errorMessage, setErrorMessage] = useState('');
+    const [showDialog, setShowDialog] = useState(false);
+    const [selectedMessageId, setSelectedMessageId] = useState(null);
+
+    const handleDeleteClick = (messageId) => {
+        setSelectedMessageId(messageId);
+        setShowDialog(true);
+    };
+
+    const handleDialogClose = () => {
+        setShowDialog(false);
+        setSelectedMessageId(null);
+    };
+
+    const handleDeleteForMe = () => {
+        setDeletedMessages([...deletedMessages, selectedMessageId]);
+        handleDialogClose();
+    };
+
+    const handleDeleteForAll = async () => {
+        await deleteMessage(selectedMessageId);
+        handleDialogClose();
+    };
 
     const handleLogin = async () => {
         const url = 'http://localhost:8000/login';
@@ -53,8 +76,7 @@ function App() {
         const response = await fetch(url);
         const data = await response.json();
         if (JSON.stringify(data) !== JSON.stringify(messages)) {
-            setMessages(data);
-            console.log(data);
+            setMessages(data.filter((message) => !deletedMessages.includes(message.message_id)));
         }
     };
 
@@ -64,6 +86,7 @@ function App() {
             method: 'DELETE',
         });
         if (response.ok) {
+            setDeletedMessages([...deletedMessages, selectedMessageId]);
             await fetchMessages();
         } else {
             setErrorMessage('Message not deleted. Please try again.' + (await response.json()["response"] || ""));
@@ -121,13 +144,28 @@ function App() {
                                             </p>
                                         </div>
                                         <button
-                                            onClick={() => deleteMessage(value.message_id)}
-                                            className="submit-chat my-message message"
-                                        >
+                                            onClick={() => handleDeleteClick(value.message_id)}
+                                            className="submit-chat my-message message">
                                             <img src="/trash.png" alt="Delete" className="delete-icon" />
                                         </button>
-                                    </div>
-                                );
+                                        {showDialog && (
+                                            <div className="dialog">
+                                                <p>Удалить сообщение только для вас или для всех?</p>
+                                                <button
+                                                    onClick={handleDeleteForMe}
+                                                    className="submit-chat"
+                                                >Только для меня</button>
+                                                <button
+                                                    onClick={handleDeleteForAll}
+                                                    className="submit-chat"
+                                                >Для всех</button>
+                                                <button
+                                                    onClick={handleDialogClose}
+                                                    className="submit-chat"
+                                                >Отмена</button>
+                                            </div>
+                                        )}
+                                    </div>);
                             } else {
                                 return (
                                     <div
@@ -141,12 +179,6 @@ function App() {
                                             <p className="message">
                                                 {value.message}
                                             </p>
-                                            {/*<button*/}
-                                            {/*    onClick={() => deleteMessage(value.message_id)}*/}
-                                            {/*    className="submit-chat my-message message"*/}
-                                            {/*>*/}
-                                            {/*    <img src="/trash.png" alt="Delete" className="delete-icon" />*/}
-                                            {/*</button>*/}
                                         </div>
                                     </div>
                                 );
