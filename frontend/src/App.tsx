@@ -43,7 +43,7 @@ function App() {
         if (response.ok) {
             setMessage(['']);
         } else {
-            setErrorMessage('Message not delivered. Please try again.');
+            setErrorMessage('Message not delivered. Please try again.' + (await response.json()["response"] || ""));
         }
         await fetchMessages();
     };
@@ -54,6 +54,19 @@ function App() {
         const data = await response.json();
         if (JSON.stringify(data) !== JSON.stringify(messages)) {
             setMessages(data);
+            console.log(data);
+        }
+    };
+
+    const deleteMessage = async (messageId) => {
+        const url = `http://localhost:8000/chat/${messageId}`;
+        const response = await fetch(url, {
+            method: 'DELETE',
+        });
+        if (response.ok) {
+            await fetchMessages();
+        } else {
+            setErrorMessage('Message not deleted. Please try again.' + (await response.json()["response"] || ""));
         }
     };
 
@@ -107,6 +120,12 @@ function App() {
                                                 {value.message}
                                             </p>
                                         </div>
+                                        <button
+                                            onClick={() => deleteMessage(value.message_id)}
+                                            className="submit-chat my-message message"
+                                        >
+                                            <img src="/trash.png" alt="Delete" className="delete-icon" />
+                                        </button>
                                     </div>
                                 );
                             } else {
@@ -122,6 +141,12 @@ function App() {
                                             <p className="message">
                                                 {value.message}
                                             </p>
+                                            {/*<button*/}
+                                            {/*    onClick={() => deleteMessage(value.message_id)}*/}
+                                            {/*    className="submit-chat my-message message"*/}
+                                            {/*>*/}
+                                            {/*    <img src="/trash.png" alt="Delete" className="delete-icon" />*/}
+                                            {/*</button>*/}
                                         </div>
                                     </div>
                                 );
