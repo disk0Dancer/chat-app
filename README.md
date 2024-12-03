@@ -19,6 +19,9 @@ The project also includes various utilities and build tools to streamline develo
 - **Vite**: A fast build tool and development server for modern web projects.
 - **NPM**: A package manager.
 
+  <img width="2056" alt="image" src="https://github.com/user-attachments/assets/1d322562-97a9-4812-b84a-d35a49623882">
+
+
 ### Backend
 
 - **Python**: A high-level programming language.
@@ -42,7 +45,7 @@ make up
 
 ### Running the Application
 
-Open your browser and navigate to [http://localhost:3000](http://localhost:3000) to access the chat application.
+Open your browser and navigate to [http://localhost:5173](http://localhost:5173) to access the chat application.
 
 ### Help
 
