@@ -1,127 +1,96 @@
 // @ts-expect-error - ignore TS error
 import React, { useState, useEffect } from 'react';
-import { v4 as uuid } from 'uuid';
+import { PubSub } from '@google-cloud/pubsub';
 import './App.css';
+
+type ChatMessage = {
+    sender: string;
+    message: string;
+};
+
+const SYSTEM_TOPIC = 'users';
+const CHAT_TOPIC = 'chat';
+export const pubSubClient = new PubSub({
+    projectId: 'chat',
+    apiEndpoint: '0.0.0.0:8085',
+});
 
 function App() {
     const [login, setLogin] = useState('');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [users, setUsers] = useState([]);
-    const [message, setMessage] = useState([]);
+    const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
-    const [deletedMessages, setDeletedMessages] = useState([]);
     const [errorMessage, setErrorMessage] = useState('');
-    const [showDialog, setShowDialog] = useState(false);
-    const [selectedMessageId, setSelectedMessageId] = useState(null);
+    const [userTopic, setUserTopic] = useState<string>('');
 
-    const handleDeleteClick = messageId => {
-        setSelectedMessageId(messageId);
-        setShowDialog(true);
-    };
 
-    const handleDialogClose = () => {
-        setShowDialog(false);
-        setSelectedMessageId(null);
-    };
+    async function publishMessage(topicNameOrId: string, data: string) {
+        const dataBuffer = Buffer.from(data);
+        const topic = pubSubClient.topic(topicNameOrId);
 
-    const handleDeleteForMe = () => {
-        setDeletedMessages([...deletedMessages, selectedMessageId]);
-        handleDialogClose();
-    };
-
-    const handleDeleteForAll = async () => {
-        await deleteMessage(selectedMessageId);
-        handleDialogClose();
-    };
-
-    const handleLogin = async () => {
-        const url = 'http://localhost:8000/login';
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ login: login }),
-        });
-        if (response.ok) {
-            setIsLoggedIn(true);
+        try {
+            const messageId = topic.publishMessage({data: dataBuffer});
+            console.log(`Message ${messageId} published.`);
+        } catch (error) {
+            console.error(
+                `Received error while publishing: ${(error as Error).message}`
+            );
+            process.exitCode = 1;
         }
-    };
+    }
 
     const logout = async () => {
-        const url = 'http://localhost:8000/logout/' + login;
-        const response = await fetch(url, {
-            method: 'DELETE',
-        });
-        if (response.ok) {
-            setIsLoggedIn(false);
+        try {
+            const command = {
+                action: 'logout',
+                login: login,
+            };
+            await publishMessage(SYSTEM_TOPIC, JSON.stringify({ json: command }));
+            return;
+        } catch (err) {
+            setErrorMessage('Ошибка выхода' + err);
         }
     };
 
     const sendMessage = async () => {
-        const url = 'http://localhost:8000/chat';
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                user: {
-                    login: login,
-                },
+        if (!message) {
+            return;
+        }
+        try {
+            const chatMessage = {
+                login: login,
                 message: message,
-                message_id: uuid(),
-            }),
-        });
-        if (response.ok) {
-            setMessage(['']);
-        } else {
-            setErrorMessage(
-                'Message not delivered. Please try again.' +
-                    ((await response.json()['response']) || ''),
-            );
+            };
+            await publishMessage(CHAT_TOPIC,  JSON.stringify({ json: chatMessage }));
+            setMessage('');
+        } catch (err) {
+            setErrorMessage('Ошибка отправки сообщения' + err);
         }
-        await fetchMessages();
+        return;
     };
 
-    const fetchMessages = async () => {
-        const url = 'http://localhost:8000/chat';
-        const response = await fetch(url);
-        const data = await response.json();
-        if (JSON.stringify(data) !== JSON.stringify(messages)) {
-            setMessages(
-                data.filter(
-                    message => !deletedMessages.includes(message.message_id),
-                ),
-            );
-        }
-    };
+    const handleLogin = async () => {
+        try {
+            const command = {
+                action: 'login',
+                login: login,
+            };
 
-    const fetchUsers = async () => {
-        const url = 'http://localhost:8000/users';
-        const response = await fetch(url);
-        if (response.ok) {
-            const data = await response.json();
-            if (JSON.stringify(data) !== JSON.stringify(users)) {
-                setUsers(data);
-                console.log(data);
-            }
-        }
-    };
+            await publishMessage(SYSTEM_TOPIC, JSON.stringify({ json: command }));
+            setUserTopic(`chat_user_${login}`);
+            setLogin(login);
+            setIsLoggedIn(true);
 
-    const deleteMessage = async messageId => {
-        const url = `http://localhost:8000/chat/${messageId}`;
-        const response = await fetch(url, {
-            method: 'DELETE',
-        });
-        if (response.ok) {
-            setDeletedMessages([...deletedMessages, selectedMessageId]);
-            await fetchMessages();
-        } else {
-            setErrorMessage(
-                'Message not deleted. Please try again.' +
-                    ((await response.json()['response']) || ''),
-            );
+            const subscription = pubSubClient.subscription(userTopic);
+            subscription.on('message', message => {
+                const chatMessage = JSON.parse(
+                    message.data.toString(),
+                ) as ChatMessage;
+                setMessages(prev => [...prev, chatMessage]);
+                message.ack();
+            });
+        } catch (err) {
+            setErrorMessage(err);
         }
     };
 
@@ -133,15 +102,10 @@ function App() {
 
     useEffect(() => {
         if (isLoggedIn) {
-            const interval = setInterval(fetchMessages, 1000);
-            const intervalUsers = setInterval(fetchUsers, 1000);
             window.addEventListener('beforeunload', logout);
-            return () => (
-                clearInterval(interval),
-                clearInterval(intervalUsers)
-            );
+            return;
         }
-    }, [isLoggedIn, fetchMessages, logout]);
+    }, [isLoggedIn, logout]);
 
     return (
         <div className="container">
@@ -161,17 +125,7 @@ function App() {
                     </button>
                 </div>
             ) : (
-                <div className={"container"}>
-                    <div className="users">
-                        <h1>Users</h1>
-                        <ul className={"chat"}>
-                            {users.map((value, index) => (
-                                <li key={index} className={value ? 'online' : ''}>
-                                    {value}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                <div className={'container'}>
                     <div className="chat-container">
                         <h1>Chat</h1>
                         <h2>Your login: {login} </h2>
@@ -180,6 +134,7 @@ function App() {
                         )}
                         <div className="chat">
                             {messages.map((value, index) => {
+                                // @ts-ignore
                                 if (value.user.login === login) {
                                     return (
                                         <div
@@ -191,52 +146,6 @@ function App() {
                                                     {value.message}
                                                 </p>
                                             </div>
-                                            <button
-                                                onClick={() =>
-                                                    handleDeleteClick(
-                                                        value.message_id,
-                                                    )
-                                                }
-                                                className="submit-chat my-message message"
-                                            >
-                                                <img
-                                                    src="/trash.png"
-                                                    alt="Delete"
-                                                    className="delete-icon"
-                                                />
-                                            </button>
-                                            {showDialog && (
-                                                <div className="dialog">
-                                                    <p>
-                                                        Удалить сообщение только
-                                                        для вас или для всех?
-                                                    </p>
-                                                    <button
-                                                        onClick={
-                                                            handleDeleteForMe
-                                                        }
-                                                        className="submit-chat"
-                                                    >
-                                                        Только для меня
-                                                    </button>
-                                                    <button
-                                                        onClick={
-                                                            handleDeleteForAll
-                                                        }
-                                                        className="submit-chat"
-                                                    >
-                                                        Для всех
-                                                    </button>
-                                                    <button
-                                                        onClick={
-                                                            handleDialogClose
-                                                        }
-                                                        className="submit-chat"
-                                                    >
-                                                        Отмена
-                                                    </button>
-                                                </div>
-                                            )}
                                         </div>
                                     );
                                 } else {
@@ -247,7 +156,7 @@ function App() {
                                         >
                                             <div className="another-message">
                                                 <p className="client">
-                                                    {value.user.login}
+                                                    {value.login}
                                                 </p>
                                                 <p className="message">
                                                     {value.message}
@@ -263,7 +172,6 @@ function App() {
                                 className="input-chat"
                                 type="text"
                                 placeholder="Chat message ..."
-                                // @ts-expect-error - ignore TS error
                                 onChange={e => setMessage(e.target.value)}
                                 onKeyDown={e => enterClick(e, sendMessage)}
                                 value={message}
@@ -277,9 +185,10 @@ function App() {
                         </div>
                     </div>
                 </div>
-            )}
+            )
+            }
         </div>
-    );
+    )
 }
 
 export default App;
