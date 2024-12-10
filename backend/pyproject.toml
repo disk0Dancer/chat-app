@@ -3,12 +3,10 @@ name = "backend"
 version = "0.1.0"
 description = "backend for chat"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
-    "fastapi[standart]>=0.115.5",
-    "google-cloud-pubsub>=2.27.1",
+    "pika>=1.3.2",
     "pydantic>=2.10.2",
-    "uvicorn>=0.32.1",
 ]
 
 [dependency-groups]

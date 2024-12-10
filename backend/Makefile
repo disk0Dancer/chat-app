@@ -17,28 +17,15 @@ install: ## Install Python and Cloud Composer for local environment.
 api-up: ## Start backend
 	uv run main.py
 
-pubsub-up: ## Start Pub/Sub emulator
-	@$(shell $(export PUBSUB_EMULATOR_HOST=localhost:8085))
-	@echo "Starting Pub/Sub emulator..."
-    
-	PROJECT="chat"; \
-    PS_START_TRIES=0; \
-    docker run --rm -d \
-        -p 8085:8085 \
-        --name gcp-pubsub-emulator \
-        google/cloud-sdk:emulators \
-        /bin/bash -c "gcloud beta emulators pubsub start \
-        	--project=$$PROJECT \
-            --host-port='0.0.0.0:8085'"; \
-    until curl -s http://0.0.0.0:8085/ > /dev/null; do \
-        sleep 2; \
-        echo "Waiting for Pub/Sub emulator to start..."; \
-    done;
-    
-	@echo "Pub/Sub emulator started at http://0.0.0.0:8085"
+#pubsub-up: ## Start Pub/Sub emulator
+#	 docker run --rm -d \
+#        --name rabbitmq \
+#        -p 5672:5672 \
+#        -p 15672:15672 \
+#        rabbitmq:3-management
 
 up: ## Start local env
-	@$(MAKE) pubsub-up
+	@#$(MAKE) pubsub-up
 	@$(MAKE) api-up &
 	@wait
 	@echo "\nLocal enviroments started"

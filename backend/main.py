@@ -1,65 +1,52 @@
 import json
 import threading
-from pubsub import PubSubClient
-
-pubsub_client = PubSubClient()
-SYSTEM_TOPIC = "login"
-CHAT_TOPIC = "chat"
-
-users = {}  # Structure: {login: {"topic": "chat_user_<login>"}}
-
-# Create required topics
-pubsub_client.create_topic(SYSTEM_TOPIC)
-pubsub_client.create_topic(CHAT_TOPIC)
+from pika_client import *
 
 
-def process_system_message(message):
-    """Process system commands like login, logout, and get_users."""
-    command = json.loads(message.data.decode("utf-8"))
-    print(f"System command received: {command}")
-    response = {}
-    action = command.get("action")
-    login = command.get("login")
-
-    if action == "login" and login:
-        user_topic = f"chat_user_{login}"
-        pubsub_client.create_topic(user_topic)
-        users[login] = {"topic": user_topic}
-        print(user_topic)
-
-    elif action == "logout" and login:
-        if login in users:
-            del users[login]
-            print(f"User {login} logged out.")
-
-    pubsub_client.publish_message(SYSTEM_TOPIC, response)
-    message.ack()
+users = {}  # {"<login>": "<uuid>"}
 
 
-def process_chat_message(message):
-    """Process chat messages and broadcast them to all users."""
-    chat_message = json.loads(message.data.decode("utf-8"))
-    print(f"Chat message received: {chat_message}")
+def login_callback(body):
+    try:
+        print(f"Получена команда входа: {body}")
+        action = body.get("action")
+        login = body.get("login")
+        queue = body.get("queue")
 
-    # Broadcast message to all user topics
-    for user, data in users.items():
-        pubsub_client.publish_message(data["topic"], chat_message)
-    message.ack()
+        if action == "login" and login and queue:
+            create_queue(queue)
+            users[login] = {"queue": queue}
+            print(f"Пользователь {login} вошел в систему с очередью {queue}")
+        elif action == "logout" and login:
+            if login in users:
+                del users[login]
+                print(f"Пользователь {login} вышел из системы.")
+    except Exception as e:
+        print(f"Ошибка в login_callback: {e}")
+
+
+def chat_callback(body):
+    try:
+        print(f"Получено сообщение чата: {body}")
+        for user, data in users.items():
+            send_message(data["queue"], body)
+    except Exception as e:
+        print(f"Ошибка в chat_callback: {e}")
 
 
 def start_listeners():
-    """Start Pub/Sub listeners for system commands and chat messages."""
+    """Start RabbitMQ listeners for system commands and chat messages."""
+    print(1)
     threading.Thread(
-        target=pubsub_client.listen_to_messages,
-        args=(SYSTEM_TOPIC, process_system_message),
-        daemon=True,
+        target=consume_messages,
+        args=("login", login_callback),
     ).start()
+    print(2)
     threading.Thread(
-        target=pubsub_client.listen_to_messages,
-        args=(CHAT_TOPIC, process_chat_message),
-        daemon=True,
+        target=consume_messages,
+        args=("chat", chat_callback),
     ).start()
-
+    print(3)
 
 if __name__ == "__main__":
     start_listeners()

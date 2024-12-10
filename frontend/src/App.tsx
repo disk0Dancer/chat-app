@@ -1,10 +1,8 @@
+// App.tsx
 import React, { useState, useEffect } from 'react';
+import { Client } from '@stomp/stompjs';
+import { v4 as uuidv4 } from 'uuid';
 import './App.css';
-import { v4 as uuidv4 } from 'uuid';import { Buffer } from 'buffer';
-window.Buffer = Buffer;
-// import { Client } from '@stomp/stompjs';
-
-import {ampq} from 'amqplib';
 
 type ChatMessage = {
     sender: string;
@@ -14,155 +12,172 @@ type ChatMessage = {
 const SYSTEM_QUEUE = 'login';
 const CHAT_QUEUE = 'chat';
 
-
 function App() {
     const [userLogin, setUserLogin] = useState('');
+    // @ts-ignore
+    const [userQueue, setUserQueue] = useState('');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [client, setClient] = useState<Client | null>(null);
+
     // @ts-ignore
-    const [userQueue, setUserQueue] = useState<string>('');
-    const [channel, setChannel] = useState(null);
-    const [connection, setConnection] = useState(null);
-
     useEffect(() => {
+        const stompClient = new Client({
+            brokerURL: 'ws://localhost:15674/ws',
+            // reconnectDelay: 1000,
+            debug: (str) => console.log('STOMP Debug:', str),
+        });
 
-        const connection = ampq.connect("amqp://localhost:5672"); // await
-        const channel= connection.createChannel();
-
-        setChannel(channel);
-        setConnection(connection);
-
-
-        return () => {
-            if (isLoggedIn && connection) {
-                window.addEventListener('beforeunload', logout);
-                connection.on("message", (message) => (
-                    setMessages([message, ...messages])
-                ))
-                window.removeEventListener('beforeunload', logout);
+        stompClient.onConnect = () => {
+            console.log('Connected to RabbitMQ via STOMP');
+            // Subscribe to chat queue
+            if (isLoggedIn){
+                client.subscribe(userQueue, (message) => {
+                    const newMessage: ChatMessage = JSON.parse(message.body);
+                    setMessages((prevMessages) => [newMessage, ...prevMessages]);
+                });
             }
         };
-    }, [isLoggedIn]);
 
-    const publishMessage = async (queueName: string, data: string) => {
-        if (channel) {
-            await channel.sendToQueue(queueName, Buffer.from(JSON.stringify(data)));
-        } else {
-            console.error('err publish');
-        }
-    };
+        stompClient.activate();
+        setClient(stompClient);
+        return () => stompClient.deactivate();
+    }, []);
 
     const sendMessage = () => {
-        if (!message) {
+        if (!message.trim()) {
+            console.error("Message is empty");
             return;
         }
-        const chatMessage = {
+        if (!client || !client.connected) {
+            console.error("STOMP client is not connected");
+            return;
+        }
+
+        const chatMessage: ChatMessage = {
             sender: userLogin,
-            message: message,
+            message,
         };
-        publishMessage(CHAT_QUEUE, JSON.stringify(chatMessage))
-            .then(() =>  setMessage(''));
+
+        console.log(JSON.stringify(chatMessage));
+
+        client.publish({
+            destination: CHAT_QUEUE,
+            body: btoa(JSON.stringify(chatMessage)),
+        });
+
+        setMessage('');
     };
 
     const login = () => {
-        const userQueue = `${uuidv4()}`;
-        const command = {
+        const userQueue = uuidv4();
+        const loginMessage = {
             action: 'login',
             login: userLogin,
             queue: userQueue,
         };
-        publishMessage(SYSTEM_QUEUE, JSON.stringify(command))
-            .then(
-                () => (
-                    setIsLoggedIn(true), setUserQueue(userQueue)
-                )
-            );
+        console.log(JSON.stringify(loginMessage));
+
+
+        client.publish({
+            destination: SYSTEM_QUEUE,
+            body: btoa(JSON.stringify(loginMessage)),
+        });
+        setUserQueue(userQueue);
+
+        setIsLoggedIn(true);
+
+        client.subscribe(userQueue, (message) => {
+            const newMessage: ChatMessage = JSON.parse(message.body);
+            setMessages((prevMessages) => [newMessage, ...prevMessages]);
+        });
     };
 
-    const logout = async () => {
-        const command = {
+    // @ts-ignore
+    const logout = () => {
+        if (!client) return;
+
+        const logoutMessage = {
             action: 'logout',
             login: userLogin,
         };
-        publishMessage(SYSTEM_QUEUE, JSON.stringify(command))
-            .then(() => setIsLoggedIn(false));
-        await connection.close(); // await
-        await channel.close();
+
+        client.publish({
+            destination: SYSTEM_QUEUE,
+            body: btoa(JSON.stringify(logoutMessage)),
+        });
+
+        setIsLoggedIn(false);
     };
 
-    const enterClick = (e: React.KeyboardEvent, func: () => void) => {
-        if (e.key === 'Enter') {
-            func();
+    const handleKeyPress = (
+        event: React.KeyboardEvent<HTMLInputElement>,
+        action: () => void
+    ) => {
+        if (event.key === 'Enter') {
+            action();
         }
     };
-
-    // useEffect(() => {
-    //
-    // }, [isLoggedIn]);
 
     return (
         <div className="container">
             {!isLoggedIn ? (
                 <div className="input-chat-container">
-                    <h1>Enter your login</h1>
+                    <h1>Enter Your Login</h1>
                     <input
                         className="input-chat"
                         type="text"
-                        placeholder="Login"
+                        placeholder="Enter your login"
                         value={userLogin}
                         onChange={(e) => setUserLogin(e.target.value)}
-                        onKeyDown={(e) => enterClick(e, login)}
+                        onKeyDown={(e) => handleKeyPress(e, login)}
                     />
                     <button onClick={login} className="submit-chat">
                         Login
                     </button>
                 </div>
             ) : (
-                <div className="container">
-                    <div className="chat-container">
-                        <h1>Chat</h1>
-                        <h2>Your login: {userLogin}</h2>
-                        <div className="chat">
-                            {messages.map((value, index) => (
+                <div className="chat-container">
+                    <h1>Chat Room</h1>
+                    <h2>Your Login: {userLogin}</h2>
+                    <div className="chat">
+                        {messages.map((msg, index) => (
+                            <div
+                                key={index}
+                                className={
+                                    msg.sender === userLogin
+                                        ? 'my-message-container'
+                                        : 'another-message-container'
+                                }
+                            >
                                 <div
-                                    key={index}
                                     className={
-                                        value.sender === userLogin
-                                            ? 'my-message-container'
-                                            : 'another-message-container'
+                                        msg.sender === userLogin
+                                            ? 'my-message'
+                                            : 'another-message'
                                     }
                                 >
-                                    <div
-                                        className={
-                                            value.sender === userLogin
-                                                ? 'my-message'
-                                                : 'another-message'
-                                        }
-                                    >
-                                        <p className="message">
-                                            {value.message}
-                                        </p>
-                                    </div>
+                                    <p className="message">
+                                        <strong>{msg.sender}: </strong>
+                                        {msg.message}
+                                    </p>
                                 </div>
-                            ))}
-                        </div>
-                        <div className="input-chat-container">
-                            <input
-                                className="input-chat"
-                                type="text"
-                                placeholder="Chat message ..."
-                                onChange={(e) => setMessage(e.target.value)}
-                                onKeyDown={(e) => enterClick(e, sendMessage)}
-                                value={message}
-                            />
-                            <button
-                                className="submit-chat"
-                                onClick={sendMessage}
-                            >
-                                Send
-                            </button>
-                        </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="input-chat-container">
+                        <input
+                            className="input-chat"
+                            type="text"
+                            placeholder="Type your message..."
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            onKeyDown={(e) => handleKeyPress(e, sendMessage)}
+                        />
+                        <button onClick={sendMessage} className="submit-chat">
+                            Send
+                        </button>
                     </div>
                 </div>
             )}
