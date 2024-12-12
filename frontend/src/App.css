@@ -157,7 +157,6 @@
     word-wrap: break-word; /* Break words for long text */
 }
 
-/* Client and Message Metadata */
 .client {
     font-size: 13px;
     margin-top: 0;
@@ -174,30 +173,6 @@
     margin-bottom: 10px;
 }
 
-.delete-icon {
-    width: 20px;
-    height: 20px;
-}
-
-.dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgb(212, 253, 77);
-    padding: 20px;
-    border: 1px solid #ccc;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-}
-
-.dialog button {
-    margin: 5px;
-    white-space: nowrap;
-    width: auto;
-}
-
-/* App.css */
 .container {
     display: flex;
     flex-direction: row; /* Горизонтальное расположение */
@@ -221,30 +196,4 @@
     box-shadow: 10px 10px;
     background-color: white;
     margin: 0 auto; /* Центрирует контейнер по горизонтали */
-}
-
-/* App.css */
-.users {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    width: 250px;
-    max-width: 250px;
-    height: 80vh;
-    max-height: 700px;
-    border: 1px solid black;
-    box-shadow: 10px 10px;
-    background-color: white;
-    margin: 0 auto;
-    padding: 10px;
-}
-
-.users ul {
-    list-style-type: disc; /* Маркеры для списка */
-    padding-left: 20px; /* Отступ слева для маркеров */
-}
-
-.users li {
-    margin-bottom: 10px; /* Отступ между элементами списка */
 }

@@ -1,280 +1,183 @@
-// @ts-expect-error - ignore TS error
+// App.tsx
 import React, { useState, useEffect } from 'react';
-import { v4 as uuid } from 'uuid';
+import { Client } from '@stomp/stompjs';
+import { v4 as uuidv4 } from 'uuid';
 import './App.css';
 
+type ChatMessage = {
+    sender: string;
+    message: string;
+};
+
+const SYSTEM_QUEUE = 'login';
+const CHAT_QUEUE = 'chat';
+
 function App() {
-    const [login, setLogin] = useState('');
+    const [userLogin, setUserLogin] = useState('');
+    // @ts-ignore
+    const [userQueue, setUserQueue] = useState('');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [users, setUsers] = useState([]);
-    const [message, setMessage] = useState([]);
-    const [messages, setMessages] = useState([]);
-    const [deletedMessages, setDeletedMessages] = useState([]);
-    const [errorMessage, setErrorMessage] = useState('');
-    const [showDialog, setShowDialog] = useState(false);
-    const [selectedMessageId, setSelectedMessageId] = useState(null);
+    const [message, setMessage] = useState('');
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [client, setClient] = useState<Client | null>(null);
 
-    const handleDeleteClick = messageId => {
-        setSelectedMessageId(messageId);
-        setShowDialog(true);
-    };
-
-    const handleDialogClose = () => {
-        setShowDialog(false);
-        setSelectedMessageId(null);
-    };
-
-    const handleDeleteForMe = () => {
-        setDeletedMessages([...deletedMessages, selectedMessageId]);
-        handleDialogClose();
-    };
-
-    const handleDeleteForAll = async () => {
-        await deleteMessage(selectedMessageId);
-        handleDialogClose();
-    };
-
-    const handleLogin = async () => {
-        const url = 'http://localhost:8000/login';
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ login: login }),
-        });
-        if (response.ok) {
-            setIsLoggedIn(true);
-        }
-    };
-
-    const logout = async () => {
-        const url = 'http://localhost:8000/logout/' + login;
-        const response = await fetch(url, {
-            method: 'DELETE',
-        });
-        if (response.ok) {
-            setIsLoggedIn(false);
-        }
-    };
-
-    const sendMessage = async () => {
-        const url = 'http://localhost:8000/chat';
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                user: {
-                    login: login,
-                },
-                message: message,
-                message_id: uuid(),
-            }),
-        });
-        if (response.ok) {
-            setMessage(['']);
-        } else {
-            setErrorMessage(
-                'Message not delivered. Please try again.' +
-                    ((await response.json()['response']) || ''),
-            );
-        }
-        await fetchMessages();
-    };
-
-    const fetchMessages = async () => {
-        const url = 'http://localhost:8000/chat';
-        const response = await fetch(url);
-        const data = await response.json();
-        if (JSON.stringify(data) !== JSON.stringify(messages)) {
-            setMessages(
-                data.filter(
-                    message => !deletedMessages.includes(message.message_id),
-                ),
-            );
-        }
-    };
-
-    const fetchUsers = async () => {
-        const url = 'http://localhost:8000/users';
-        const response = await fetch(url);
-        if (response.ok) {
-            const data = await response.json();
-            if (JSON.stringify(data) !== JSON.stringify(users)) {
-                setUsers(data);
-                console.log(data);
-            }
-        }
-    };
-
-    const deleteMessage = async messageId => {
-        const url = `http://localhost:8000/chat/${messageId}`;
-        const response = await fetch(url, {
-            method: 'DELETE',
-        });
-        if (response.ok) {
-            setDeletedMessages([...deletedMessages, selectedMessageId]);
-            await fetchMessages();
-        } else {
-            setErrorMessage(
-                'Message not deleted. Please try again.' +
-                    ((await response.json()['response']) || ''),
-            );
-        }
-    };
-
-    const enterClick = (e, func) => {
-        if (e.key === 'Enter') {
-            func();
-        }
-    };
-
+    // @ts-ignore
     useEffect(() => {
-        if (isLoggedIn) {
-            const interval = setInterval(fetchMessages, 1000);
-            const intervalUsers = setInterval(fetchUsers, 1000);
-            window.addEventListener('beforeunload', logout);
-            return () => (
-                clearInterval(interval),
-                clearInterval(intervalUsers)
-            );
+        const stompClient = new Client({
+            brokerURL: 'ws://localhost:15674/ws',
+            // reconnectDelay: 1000,
+            debug: (str) => console.log('STOMP Debug:', str),
+        });
+
+        stompClient.onConnect = () => {
+            console.log('Connected to RabbitMQ via STOMP');
+            // Subscribe to chat queue
+            if (isLoggedIn){
+                client.subscribe(userQueue, (message) => {
+                    const newMessage: ChatMessage = JSON.parse(message.body);
+                    setMessages((prevMessages) => [newMessage, ...prevMessages]);
+                });
+            }
+        };
+
+        stompClient.activate();
+        setClient(stompClient);
+        return () => stompClient.deactivate();
+    }, []);
+
+    const sendMessage = () => {
+        if (!message.trim()) {
+            console.error("Message is empty");
+            return;
         }
-    }, [isLoggedIn, fetchMessages, logout]);
+        if (!client || !client.connected) {
+            console.error("STOMP client is not connected");
+            return;
+        }
+
+        const chatMessage: ChatMessage = {
+            sender: userLogin,
+            message,
+        };
+
+        console.log(JSON.stringify(chatMessage));
+
+        client.publish({
+            destination: CHAT_QUEUE,
+            body: btoa(JSON.stringify(chatMessage)),
+        });
+
+        setMessage('');
+    };
+
+    const login = () => {
+        const userQueue = uuidv4();
+        const loginMessage = {
+            action: 'login',
+            login: userLogin,
+            queue: userQueue,
+        };
+        console.log(JSON.stringify(loginMessage));
+
+
+        client.publish({
+            destination: SYSTEM_QUEUE,
+            body: btoa(JSON.stringify(loginMessage)),
+        });
+        setUserQueue(userQueue);
+
+        setIsLoggedIn(true);
+
+        client.subscribe(userQueue, (message) => {
+            const newMessage: ChatMessage = JSON.parse(message.body);
+            setMessages((prevMessages) => [newMessage, ...prevMessages]);
+        });
+    };
+
+    // @ts-ignore
+    const logout = () => {
+        if (!client) return;
+
+        const logoutMessage = {
+            action: 'logout',
+            login: userLogin,
+        };
+
+        client.publish({
+            destination: SYSTEM_QUEUE,
+            body: btoa(JSON.stringify(logoutMessage)),
+        });
+
+        setIsLoggedIn(false);
+    };
+
+    const handleKeyPress = (
+        event: React.KeyboardEvent<HTMLInputElement>,
+        action: () => void
+    ) => {
+        if (event.key === 'Enter') {
+            action();
+        }
+    };
 
     return (
         <div className="container">
             {!isLoggedIn ? (
                 <div className="input-chat-container">
-                    <h1>Enter your login</h1>
+                    <h1>Enter Your Login</h1>
                     <input
                         className="input-chat"
                         type="text"
-                        placeholder="Login"
-                        value={login}
-                        onChange={e => setLogin(e.target.value)}
-                        onKeyDown={e => enterClick(e, handleLogin)}
+                        placeholder="Enter your login"
+                        value={userLogin}
+                        onChange={(e) => setUserLogin(e.target.value)}
+                        onKeyDown={(e) => handleKeyPress(e, login)}
                     />
-                    <button onClick={handleLogin} className="submit-chat">
+                    <button onClick={login} className="submit-chat">
                         Login
                     </button>
                 </div>
             ) : (
-                <div className={"container"}>
-                    <div className="users">
-                        <h1>Users</h1>
-                        <ul className={"chat"}>
-                            {users.map((value, index) => (
-                                <li key={index} className={value ? 'online' : ''}>
-                                    {value}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                    <div className="chat-container">
-                        <h1>Chat</h1>
-                        <h2>Your login: {login} </h2>
-                        {errorMessage && (
-                            <p className="error-message">{errorMessage}</p>
-                        )}
-                        <div className="chat">
-                            {messages.map((value, index) => {
-                                if (value.user.login === login) {
-                                    return (
-                                        <div
-                                            key={index}
-                                            className="my-message-container"
-                                        >
-                                            <div className="my-message">
-                                                <p className="message">
-                                                    {value.message}
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={() =>
-                                                    handleDeleteClick(
-                                                        value.message_id,
-                                                    )
-                                                }
-                                                className="submit-chat my-message message"
-                                            >
-                                                <img
-                                                    src="/trash.png"
-                                                    alt="Delete"
-                                                    className="delete-icon"
-                                                />
-                                            </button>
-                                            {showDialog && (
-                                                <div className="dialog">
-                                                    <p>
-                                                        Удалить сообщение только
-                                                        для вас или для всех?
-                                                    </p>
-                                                    <button
-                                                        onClick={
-                                                            handleDeleteForMe
-                                                        }
-                                                        className="submit-chat"
-                                                    >
-                                                        Только для меня
-                                                    </button>
-                                                    <button
-                                                        onClick={
-                                                            handleDeleteForAll
-                                                        }
-                                                        className="submit-chat"
-                                                    >
-                                                        Для всех
-                                                    </button>
-                                                    <button
-                                                        onClick={
-                                                            handleDialogClose
-                                                        }
-                                                        className="submit-chat"
-                                                    >
-                                                        Отмена
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                } else {
-                                    return (
-                                        <div
-                                            key={index}
-                                            className="another-message-container"
-                                        >
-                                            <div className="another-message">
-                                                <p className="client">
-                                                    {value.user.login}
-                                                </p>
-                                                <p className="message">
-                                                    {value.message}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    );
+                <div className="chat-container">
+                    <h1>Chat Room</h1>
+                    <h2>Your Login: {userLogin}</h2>
+                    <div className="chat">
+                        {messages.map((msg, index) => (
+                            <div
+                                key={index}
+                                className={
+                                    msg.sender === userLogin
+                                        ? 'my-message-container'
+                                        : 'another-message-container'
                                 }
-                            })}
-                        </div>
-                        <div className="input-chat-container">
-                            <input
-                                className="input-chat"
-                                type="text"
-                                placeholder="Chat message ..."
-                                // @ts-expect-error - ignore TS error
-                                onChange={e => setMessage(e.target.value)}
-                                onKeyDown={e => enterClick(e, sendMessage)}
-                                value={message}
-                            ></input>
-                            <button
-                                className="submit-chat"
-                                onClick={sendMessage}
                             >
-                                Send
-                            </button>
-                        </div>
+                                <div
+                                    className={
+                                        msg.sender === userLogin
+                                            ? 'my-message'
+                                            : 'another-message'
+                                    }
+                                >
+                                    <p className="message">
+                                        <strong>{msg.sender}: </strong>
+                                        {msg.message}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="input-chat-container">
+                        <input
+                            className="input-chat"
+                            type="text"
+                            placeholder="Type your message..."
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            onKeyDown={(e) => handleKeyPress(e, sendMessage)}
+                        />
+                        <button onClick={sendMessage} className="submit-chat">
+                            Send
+                        </button>
                     </div>
                 </div>
             )}

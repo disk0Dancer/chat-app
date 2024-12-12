@@ -1,3 +1,5 @@
 fastapi[standard]
 uvicorn
 ruff
+google-cloud-pubsub
+pydantic

@@ -11,64 +11,28 @@ install: ## Install Python and Cloud Composer for local environment.
 	    curl -LsSf https://astral.sh/uv/install.sh | sh; \
 	fi;
 	uv venv
-	if [ -f requirements.txt ]; then \
-	    uv pip install -r requirements.txt; \
-	fi;
+	uv sync
 	
 
 api-up: ## Start backend
-	uv run uvicorn \
-		main:app.api \
-		--host 0.0.0.0 \
-		 --port $(PORT) \
-		 --reload
+	uv run main.py
 
-pubsub-up: ## Start Pub/Sub emulator
-	@echo "Starting Pub/Sub emulator..."; \
-    PROJECT="chat"; \
-    PS_START_TRIES=0; \
-    docker run --rm -d \
-        -p 8085:8085 \
-        --name gcp-pubsub-emulator \
-        google/cloud-sdk:emulators \
-        /bin/bash -c "gcloud beta emulators pubsub start \
-            --project=$$PROJECT \
-            --host-port='0.0.0.0:8085'"; \
-    until curl -s http://0.0.0.0:8085/ > /dev/null; do \
-        sleep 2; \
-        echo "Waiting for Pub/Sub emulator to start..."; \
-        # add limit of retries 5 and then say failed \
-        if [ $(PS_START_TRIES) < 5 ]; then \
-            PS_START_TRIES = $$(($$PS_START_TRIES + 1));  #  $(($A+1)) \
-            else \
-				echo "Pub/Sub emulator failed to start"; \
-				exit 1; \
-        fi; \
-    done; \
-    for TOPIC in chat test; do \
-        curl -X PUT http://0.0.0.0:8085/v1/projects/$$PROJECT/topics/$$TOPIC; \
-        curl -H 'content-type: application/json' -X PUT \
-             -d "{\"topic\": \"projects/$$PROJECT/topics/$$TOPIC\"}" \
-             "http://localhost:8085/v1/projects/$$PROJECT/subscriptions/$${TOPIC}_sub"; \
-    done; \
-    curl -X POST \
-        -H "Content-Type: application/json" \
-        -d '{"messages":[{"data": "SGVsbG8gd29ybGQ=","attributes": {"key1": "value1"}}]}' \
-        http://localhost:8085/v1/projects/$$PROJECT/topics/test:publish
-	@sleep 5 && echo "Pub/Sub emulator started at http://0.0.0.0:8085"
+#pubsub-up: ## Start Pub/Sub emulator
+#	 docker run --rm -d \
+#        --name rabbitmq \
+#        -p 5672:5672 \
+#        -p 15672:15672 \
+#        rabbitmq:3-management
 
 up: ## Start local env
-	@#$(MAKE) pubsub-up &
+	@#$(MAKE) pubsub-up
 	@$(MAKE) api-up &
 	@wait
 	@echo "\nLocal enviroments started"
 
 prod: ## Start production environment
-	@#$(MAKE) pubsub-up &
-	@uv run uvicorn \
-		main:app.api \
-		--host 0.0.0.0 \
-		--port $(PORT)
+	@$(MAKE) pubsub-up &
+	@uv run main.py
 	@wait
 
 down: ## Stop local env
